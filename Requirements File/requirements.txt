@@ -1,3 +1,6 @@
 streamlit
-open-cv python
+pytesseract
+opencv-python
+numpy
+Pillow
 requests
