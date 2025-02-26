@@ -1,13 +1,45 @@
 import streamlit as st
-import pandas as pd
+import pytesseract
+import requests
+import cv2
+import numpy as np
+from PIL import Image
 
-st.title("Sugar Detector App")
-st.write("This is a demo app for detecting sugar content in food items.")
+def extract_text(image):
+    gray = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2GRAY)
+    text = pytesseract.image_to_string(gray)
+    return text
 
-# Example: Load some sample data (or integrate your OCR/Flask backend later)
-data = pd.DataFrame({
-    "Product": ["Apple Juice", "Soda", "Yogurt"],
-    "Sugar (g)": [24, 39, 18]
-})
+def get_nutrition_info(query):
+    api_url = f"https://world.openfoodfacts.org/cgi/search.pl?search_terms={query}&json=true"
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        data = response.json()
+        if "products" in data and data["products"]:
+            return data["products"][0]  # Return the first matching product
+    return None
 
-st.table(data)
+def main():
+    st.title("Nutritional Label Scanner")
+    uploaded_file = st.file_uploader("Upload a food label image", type=["png", "jpg", "jpeg"])
+    
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
+        st.image(image, caption='Uploaded Image', use_column_width=True)
+        
+        text = extract_text(image)
+        st.subheader("Extracted Text:")
+        st.text(text)
+        
+        if st.button("Analyze Nutrition"):
+            data = get_nutrition_info(text)
+            if data:
+                st.subheader("Nutrition Information:")
+                st.write(f"**Product Name:** {data.get('product_name', 'Unknown')}")
+                st.write("**Nutrients:**")
+                st.json(data.get("nutriments", {}))
+            else:
+                st.error("Could not fetch nutrition data.")
+
+if __name__ == "__main__":
+    main()
